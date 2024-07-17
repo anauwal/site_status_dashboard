@@ -1,4 +1,7 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+import VueParticles from 'vue-particles'
 
-createApp(App).mount('#app')
+const app = createApp(App)
+app.use(VueParticles)
+app.mount('#app')

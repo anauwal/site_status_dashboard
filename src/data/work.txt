@@ -1,0 +1,269 @@
+PROD DEBUG: 
+SERVICE DEBUGGING, DATA MODEL QUERY
+
+CM -> "/CorrectiveMaintenance/CorrectiveMaintenance/cm_wfm_corrective_maintenance"
+PM -> "/PreventiveMaintenance/PreventiveMaintenance/pm_wfm_preventive_maintenance"
+ALARM -> "/AlarmBase/ICT_AlarmPush/ap_alarm_live"
+HISTORICAL ALARM -> "/AlarmBase/ICT_History_Query/ict_hq_es_history"
+SITE STATUS -> "/site_status/site_status/site_s_sites_status"
+CMDB SITE -> "/datahub/cmdb/cmdb_site" 
+CMDB DEVICE -> "/datahub/cmdb/cmdb_device" 
+SITE ACCESS DATA -> "/SACC/SACC/sacc_site_access_verification", "/SACC/SACC/sacc_alarm_list" , "/SACC/SACC/sacc_activity","/SACC/SACC/sacc_alarms_information"
+
+SERVICES SITEINFOCARD:
+/adc-service/web/rest/v1/services/site_status/site_status/osp_mobily_site_impact_get_list_site_status IMPACT
+/adc-service/web/rest/v1/services/site_status/site_status/osp_mobily_site_impact_get_site_status CONNECTED TECHNOLOGY 
+/adc-service/web/rest/v1/services/site_status/site_status/site_s_get_site_status_physical_sites PHYSICAL SITES UP DOWN
+/adc-service/web/rest/v1/services/handover_takeover_process/handover_takeover/hoto_tickets_get_list_site_level_site_status SNAGS
+
+Access the Site : Inside
+Check External Alarms Leave Site : Outside
+Leave the Site : Outside
+Solve the Problem : Outside 
+TT Approver : Outside 
+Blank : Outside 
+
+STATUS GRID V2
+CHANGES :
+REMOVE PHYSICAL FROM PIE CHART IMPACTED SERVICE, 
+CHANGE NA 	TO DASH
+ADD NUMBERS ALARM LIST TO BARCHART ACTIVE ITEMS
+ADD COLOUR CODES FOR PRIORITY : 
+P1 -> ORANGE 
+P2 -> BLUE 
+P3 -> GREEN
+CHANGE CONNECTED TO NO. TECHNOLOGY
+
+ADDITIONS :
+VIP
+ENTIRE SITE STATUS ABOVE CASCADE CARDS (Down duration) PHYSICAL & LOGICAL
+ENM ALARMS
+
+SITE ACCESS ANALYTICS : 
+FME name,FME id,ticket status, phase, old alarm list,
+count of old alarms, count of alarms after access, related tickets,
+"""
+SELECT   
+create_time,
+start_time,
+real_starttime,
+end_time,
+real_end_time,
+id,
+order_id,
+title,
+site,
+last_update_time,
+associated_ticket_required,
+alarm_list,
+current_phase_name,
+order_status,
+fme_assigned,
+fme_mobile,
+alarm_remain_active,
+sla_status
+FROM "/SACC/SACC/sacc_site_access_verification" 
+WHERE site = 'E2033'
+"""
+
+
+SITE INFORMATIONS :
+CONNECTIVITY TYPE
+ADD PHYSICAL SITE STATUS (PHYSICAL ROW CALCULATED)
+Battery status details (FULL CHARGE OR NOT, DEFAULT NO BATTERY), estimated backup duration -> Battery Backup Duration 
+Get 1 recent latest Require Site Access Ver or no from the phase -> common query
+ADD ACCESS TYPE -> CMDB
+ADD MC FIELD (FM OFFICE) -> CMDB
+ADD POWER TYPE -> CMDB
+
+UP swap to green check (ICON WILL BE GREEN)
+X for the down (ICON WILL BE RED)
+
+CONNECTED
+20 UP 
+22 DOWN 
+FROM 42 in totals
+
+IF 1 CASCADED SITE IS DOWN (ICON WILL BE RED)
+2G 10 UP 32 DOWN (ICON WILL BE RED)
+2G 41 UP 1 DOWN (ICON WILL BE RED)
+
+NA (GRAY)
+UP (GREEN WITH CHECK MARK)
+DOWN (RED WITH X MARK) 
+
+1 FINAL ICON (ALL UP & ALL DOWN)
+
+RULES IF THERE IS ANY CASCADED SITE IS DOWN, ICON WILL BE RED
+
+TT ANALYTICS -> EnM TT & WO Fast Query -> tql : 
+
+"""
+SELECT 
+ticketid,
+createtime,
+closetime,
+change_time,
+ticketdetail,
+ticketstatus, 
+enm_severity,
+createingtype,
+alarmid,
+is_vip,
+emsalarmno,
+associateorderid,
+faultfirstoccurtime,
+slastatus,
+"domain",
+issue_name,
+createassigntod1,
+categorization_tier2,
+categorization_tier3,
+categorization_tier1,
+alarmname,
+title
+
+FROM "/TroubleTicket/TroubleTicket/tt_troubleticket" a 
+LEFT JOIN "/datahub/cmdb/cmdb_site" b ON a.site_id = b.id
+WHERE b.site_id = 'E2033'
+"""
+
+TT TYPE CONTRIBUTOR CHART
+OPEN TICKETS RUNNING NUMBER EACH TYPE
+TT DOMAIN CONTRIBUTOR
+TT AGEING OPEN TICKET (15MINUTES,1 HOUR, 4 HOUR, 6 HOURS, 12 HOURS, 18HOURS, >24 HOURS)
+SLA STATUS 
+
+OUTAGE ALARMS ANALYTICS -> Query Alarms -> TQL
+"""
+SELECT
+  id,
+ from_unixtime((firstoccurrence + 10800000) / 1000) firstoccurrence,
+  from_unixtime((lastoccurrence+10800000)/1000) lastoccurrence,
+  from_unixtime((cleartime+10800000)/1000) cleartime,
+  sitecode,
+  networktype,
+  netype,
+  devicetype,
+  sitename,
+  alertgroup,
+  sitetype,
+  alarmname
+FROM 
+  "/AlarmBase/ICT_AlarmPush/ap_alarm_live"
+WHERE
+  (alarmname IN (
+    'HEARTBEAT FAILURE',
+    'CELL LOGICAL CHANNEL AVAILABILITY SUPERVISION BCCH',
+    'UtranCell_NbapMessageFailure',
+    'UtranCell_ServiceUnavailable',
+    'UtranCell_NbapReconfigurationFailure',
+    'Service Unavailable',
+    'PLMN Service Unavailable',
+    'Heartbeat Failure'
+   ) /*ERICSSON*/
+   OR 
+  alarmname IN (
+    '7706 BTS O&M LINK FAILURE',
+    '7603 BTS FAULTY',
+    '7767 BCCH MISSING',
+    '7102 BASE STATION RESOURCE BLOCKED BY USER',
+    '7786 WCDMA BASE STATION OUT OF USE',
+    '7650 BASE STATION FAULTY',
+    '7750 FAILURE IN WCDMA WBTS O&M CONNECTION',
+    '7653 CELL FAULTY',
+    '7771 WCDMA CELL OUT OF USE',
+    '7114 CELL SERVICE PROBLEM',
+    '8502 No connection to BTS',
+    '7650 BASE STATION FAULTY',
+    '71058 NE O&M CONNECTION FAILURE',
+    '7656 BASE STATION CONNECTIVITY LOST',
+    '9047 NE3S-WS Registration failed',
+    '9047 NE3SWS AGENT NOT RESPONDING TO REQUESTS',
+    '7653 CELL FAULTY',
+    '7116 BASE STATION SERVICE PROBLEM',
+    '7114 CELL SERVICE PROBLEM',
+    '7102 BASE STATION RESOURCE BLOCKED BY USER',
+    '7100 BASE STATION HARDWARE PROBLEM',
+    '9047 NE3S-WS Registration failed',
+    '9047 NE3SWS AGENT NOT RESPONDING TO REQUESTS',
+    '7107 BASE STATION CONNECTIVITY PROBLEM',
+    '7116 BASE STATION SERVICE PROBLEM',
+    '7114 CELL SERVICE PROBLEM',
+    '7111 BASE STATION SOFTWARE MANAGEMENT PROBLEM',
+    '7102 BASE STATION RESOURCE BLOCKED BY USER',
+    '7100 BASE STATION HARDWARE PROBLEM',
+    '7657 GTP-U Path Failure'
+) /*NOKIA*/
+  OR alarmname IN (
+    'CSL Fault',
+    'OML Fault',
+    'NodeB Unavailable',
+    'NE Is Disconnected',
+    'GSM Cell out of Service',
+    'GSM Local Cell Unusable',
+    'UMTS Cell Unavailable',
+    'Local Cell Unusable',
+    'Cell Unavailable',
+    'Cell Unavailable',
+    'NR Cell Unavailable',
+    'NR DU Cell Unavailable',
+    'NR DU Cell TRP Unavailable'
+)) /*HUAWEI*/
+AND sitecode='E2033'
+"""
+ALARM AGEING
+ALARM CATEGORY NETWORK TYPE (ENM ALARM ,2G AlARM, 3G ALARM, 4G ALARM, 5G ALARM, DWDM, IP MICROWAVE)
+HISTORICAL ALARM TRENDS
+
+
+PM & CM 
+CM -> model data query :
+"""
+SELECT 
+  site_id,
+  ticketid,
+  createtime,
+  task_status,
+  change_time,
+  site_name,
+  slastatus,
+  complete_time,
+  assign_to_fme_full,
+  closetime,
+  ticketstatus,
+  fault_first_occur_time,
+  task_category
+  
+FROM "/CorrectiveMaintenance/CorrectiveMaintenance/cm_wfm_corrective_maintenance" a 
+LEFT JOIN "/datahub/cmdb/cmdb_site" b ON a.site_id = b.id
+LEFT JOIN "/WFMBase/task_service/mtask_category" c ON a.task_category = c.id
+WHERE b.site_id = 'E2033'
+"""
+
+PM ->model data query :
+"""
+SELECT 
+  site_id,
+  ticketid,
+  createtime,
+  task_status,
+  change_time,
+  site_name,
+  slastatus,
+  complete_time,
+  assign_to_fme_full,
+  closetime,
+  ticketstatus,
+  task_category
+  
+FROM "/PreventiveMaintenance/PreventiveMaintenance/pm_wfm_preventive_maintenance" a 
+LEFT JOIN "/datahub/cmdb/cmdb_site" b ON a.site_id = b.id
+LEFT JOIN "/WFMBase/task_service/mtask_category" c ON a.task_category = c.id
+WHERE b.site_id = 'E2033'
+"""
+
+TYPE CONTRIBUTOR CHART 
+OPEN PM & CM
+PM & CM DOMAIN CONTRIBUTOR 
+PM & CM AGEING OPEN (15MINUTES,1 HOUR, 4 HOUR, 6 HOURS, 12 HOURS, 18HOURS, >24 HOURS)
